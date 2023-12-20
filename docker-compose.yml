@@ -1,0 +1,26 @@
+version: '3.7'
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server.Dockerfile
+    environment:
+      WS_SERVER_PORT: "1444"
+      WS_SERVER_HOST: '0.0.0.0'
+    ports:
+      - '3333:3333'
+    image: alex-query/wisdom/server:latest
+    restart: 'no'
+
+  client:
+    build:
+      context: .
+      dockerfile: client.Dockerfile
+    environment:
+      WS_CLIENT_HOST: "server"
+      WS_CLIENT_PORT: '1444'
+    image: alex-query/wisdom/client:latest
+    restart: 'no'
+    depends_on:
+      - server
