@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"log"
-	"time"
 	"wisdom/internal/application"
 	"wisdom/internal/infrastructure/challenge"
 	"wisdom/internal/infrastructure/client"
 	"wisdom/internal/infrastructure/config"
+	"wisdom/internal/infrastructure/sync"
 )
 
 func RunClient() {
@@ -14,6 +14,7 @@ func RunClient() {
 	hashier := challenge.NewHashierSha1(globalConfigs.GetChallengeConfig())
 	challengeService := challenge.NewChallengeService(hashier)
 	tcpClient := client.NewTCPClient(globalConfigs.GetClientConfig())
+	syncService := sync.NewServiceSync(globalConfigs.GetClientConfig())
 	errorChannel := make(chan error)
 	go func() {
 		for {
@@ -22,14 +23,24 @@ func RunClient() {
 			//send to sentry
 		}
 	}()
-	app := application.NewApplicationServiceClient(tcpClient, errorChannel, challengeService)
+	app := application.NewApplicationServiceClient(
+		tcpClient,
+		errorChannel,
+		challengeService,
+		syncService,
+	)
 	err := app.Init()
 	if err != nil {
 		panic(err)
 	}
-	err = app.GetWisdom()
+	wis, err := app.GetWisdom()
 	if err != nil {
 		panic(err)
 	}
-	time.Sleep(133 * time.Second)
+	log.Println(wis)
+	wis, err = app.GetWisdom()
+	if err != nil {
+		panic(err)
+	}
+	log.Println(wis)
 }

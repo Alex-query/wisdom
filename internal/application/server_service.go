@@ -56,12 +56,12 @@ func (service *ApplicationServiceServer) Init() error {
 		}
 		switch draftMessage.Command {
 		case RequestMessageGetSecurityCodeDTOCommand:
-			err = service.GetSecurityCode(message.ClientID, message.Content)
+			err = service.GetSecurityCode(message.ClientID, draftMessage)
 			if err != nil {
 				service.sendErrorMessage(message.ClientID, err)
 			}
 		case RequestMessageGetWisdomDTOCommand:
-			err = service.GetWisdom(message.ClientID, message.Content)
+			err = service.GetWisdom(message.ClientID, draftMessage)
 			if err != nil {
 				service.sendErrorMessage(message.ClientID, err)
 			}
@@ -71,7 +71,7 @@ func (service *ApplicationServiceServer) Init() error {
 	}
 }
 
-func (service *ApplicationServiceServer) GetSecurityCode(clientID string, request []byte) error {
+func (service *ApplicationServiceServer) GetSecurityCode(clientID string, request RequestMessageDTO) error {
 	task, err := service.challengeService.GenerateTaskToResolve(clientID)
 	if err != nil {
 		return err
@@ -79,12 +79,13 @@ func (service *ApplicationServiceServer) GetSecurityCode(clientID string, reques
 	dto := ResponseMessageGetSecurityCodeDTO{}
 	dto.Meta.Code = 200
 	dto.Meta.TaskToResolve = task
+	dto.Meta.RequestID = request.Meta.RequestID
 	dto.Command = RequestMessageGetSecurityCodeDTOCommand
 	service.sendObjMessage(clientID, dto)
 	return nil
 }
 
-func (service *ApplicationServiceServer) GetWisdom(clientID string, request []byte) error {
+func (service *ApplicationServiceServer) GetWisdom(clientID string, request RequestMessageDTO) error {
 	wisdom, err := service.wisdomRepository.GetRandomWisdom()
 	if err != nil {
 		return err
@@ -99,6 +100,7 @@ func (service *ApplicationServiceServer) GetWisdom(clientID string, request []by
 		return err
 	}
 	dto.Meta.Code = 200
+	dto.Meta.RequestID = request.Meta.RequestID
 	dto.Command = RequestMessageGetWisdomDTOCommand
 	service.sendObjMessage(clientID, dto)
 	return nil

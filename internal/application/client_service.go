@@ -2,9 +2,7 @@ package application
 
 import (
 	"encoding/json"
-	"errors"
 	"log"
-	"time"
 	"wisdom/internal/domain/entity"
 	"wisdom/internal/domain/service"
 )
@@ -14,17 +12,20 @@ type ApplicationServiceClient struct {
 	errorChannel     chan error
 	challengeService service.ChallengeService
 	currentToken     string
+	syncService      service.SyncService
 }
 
 func NewApplicationServiceClient(
 	client service.ClientService,
 	errorChannel chan error,
 	challengeService service.ChallengeService,
+	syncService service.SyncService,
 ) *ApplicationServiceClient {
 	return &ApplicationServiceClient{
 		client:           client,
 		errorChannel:     errorChannel,
 		challengeService: challengeService,
+		syncService:      syncService,
 	}
 }
 
@@ -47,53 +48,75 @@ func (service *ApplicationServiceClient) Listen(readChannel chan entity.ServerMe
 		if err != nil {
 			service.sendErrorMessage(err)
 		}
+		err = service.syncService.PushResponse(draftMessage.Meta.RequestID, message.Content, nil)
+		if err != nil {
+			service.errorChannel <- err
+		}
 		if draftMessage.Command == RequestMessageGetSecurityCodeDTOCommand {
-			resp := ResponseMessageGetSecurityCodeDTO{}
-			err := json.Unmarshal(message.Content, &resp)
-			if err != nil {
-				service.sendErrorMessage(err)
-			}
-			service.currentToken, err = service.challengeService.Mint(draftMessage.Meta.TaskToResolve)
-			if err != nil {
-				service.errorChannel <- err
-			}
+
 		}
 		if draftMessage.Command == RequestMessageGetWisdomDTOCommand {
-			resp := ResponseMessageGetWisdomDTO{}
-			err := json.Unmarshal(message.Content, &resp)
-			if err != nil {
-				service.sendErrorMessage(err)
-			}
-			service.currentToken = ""
-			log.Println("got wisdom: ", resp.Data.Wisdom)
-			service.currentToken, err = service.challengeService.Mint(resp.Meta.TaskToResolve)
-			if err != nil {
-				service.errorChannel <- err
-			}
+
 		}
 	}
 }
 
-func (service *ApplicationServiceClient) GetWisdom() error {
-	if service.currentToken == "" {
-		req := RequestMessageGetSecurityCodeDTO{}
-		req.Command = RequestMessageGetSecurityCodeDTOCommand
-		service.sendObjMessage(req)
+func (service *ApplicationServiceClient) reqSecurityToken() error {
+	sr, err := service.syncService.GenerateRequestID()
+	if err != nil {
+		return err
 	}
-	for i := 0; i < 10; i++ {
-		time.Sleep(1 * time.Second)
-		if service.currentToken != "" {
-			break
+	req := RequestMessageGetSecurityCodeDTO{}
+	req.Command = RequestMessageGetSecurityCodeDTOCommand
+	req.Meta.RequestID = sr
+	service.sendObjMessage(req)
+	respText, err := service.syncService.WaitResponseByRequestID(sr)
+	if err != nil {
+		return err
+	}
+	resp := ResponseMessageGetSecurityCodeDTO{}
+	err = json.Unmarshal(respText, &resp)
+	if err != nil {
+		service.sendErrorMessage(err)
+	}
+	service.currentToken, err = service.challengeService.Mint(resp.Meta.TaskToResolve)
+	if err != nil {
+		service.errorChannel <- err
+	}
+	return nil
+}
+
+func (service *ApplicationServiceClient) GetWisdom() (string, error) {
+	if service.currentToken == "" {
+		err := service.reqSecurityToken()
+		if err != nil {
+			return "", err
 		}
 	}
-	if service.currentToken == "" {
-		return errors.New("security token is invalid")
+	sr, err := service.syncService.GenerateRequestID()
+	if err != nil {
+		return "", err
 	}
 	req := RequestMessageGetWisdomDTO{}
 	req.Command = RequestMessageGetWisdomDTOCommand
 	req.Meta.SecurityToken = service.currentToken
+	req.Meta.RequestID = sr
 	service.sendObjMessage(req)
-	return nil
+	respText, err := service.syncService.WaitResponseByRequestID(sr)
+	if err != nil {
+		return "", err
+	}
+	resp := ResponseMessageGetWisdomDTO{}
+	err = json.Unmarshal(respText, &resp)
+	if err != nil {
+		service.sendErrorMessage(err)
+	}
+	service.currentToken = ""
+	service.currentToken, err = service.challengeService.Mint(resp.Meta.TaskToResolve)
+	if err != nil {
+		service.errorChannel <- err
+	}
+	return resp.Data.Wisdom, nil
 }
 
 func (service *ApplicationServiceClient) sendErrorMessage(err error) {

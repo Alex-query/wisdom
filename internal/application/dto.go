@@ -45,8 +45,10 @@ type ResponseMessageBaseDTO struct {
 type ResponseMetaDTO struct {
 	Code          int    `json:"code"`
 	TaskToResolve string `json:"task_to_resolve"`
+	RequestID     string `json:"request_id"`
 }
 
 type RequestMetaDTO struct {
 	SecurityToken string `json:"security_token"`
+	RequestID     string `json:"request_id"`
 }
