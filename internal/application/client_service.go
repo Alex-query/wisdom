@@ -52,12 +52,6 @@ func (service *ApplicationServiceClient) Listen(readChannel chan entity.ServerMe
 		if err != nil {
 			service.errorChannel <- err
 		}
-		if draftMessage.Command == RequestMessageGetSecurityCodeDTOCommand {
-
-		}
-		if draftMessage.Command == RequestMessageGetWisdomDTOCommand {
-
-		}
 	}
 }
 
