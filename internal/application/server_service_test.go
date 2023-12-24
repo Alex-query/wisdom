@@ -28,7 +28,7 @@ func TestApplicationServiceServer_GetSecurityCode(t *testing.T) {
 				serverMock := mocks.ServerService{}
 				serverMock.On("SendMessage", entity.ServerMessage{
 					ClientID: "clientID111",
-					Content:  []byte(`{"command":"get_security_code","meta":{"code":200,"task_to_resolve":"123"}}`),
+					Content:  []byte(`{"command":"get_security_code","meta":{"code":200,"task_to_resolve":"123","request_id":""}}`),
 				}).Return(nil)
 				challenge := mocks.ChallengeService{}
 				challenge.On("GenerateTaskToResolve", "clientID111").Return("123", nil)
@@ -68,7 +68,7 @@ func TestApplicationServiceServer_GetSecurityCode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := tt.fields()
 			s := NewApplicationServiceServer(&f.serverMock, nil, &f.challenge, &f.wisdom)
-			got := s.GetSecurityCode(tt.args.clientID, []byte{})
+			got := s.GetSecurityCode(tt.args.clientID, RequestMessageDTO{})
 			if got != nil && tt.want != nil && got.Error() != tt.want.Error() {
 				t.Errorf("ApplicationServiceServer.GetSecurityCode() = %v, want %v", got, tt.want)
 			}
@@ -100,7 +100,7 @@ func TestApplicationServiceServer_GetWisdom(t *testing.T) {
 				serverMock := mocks.ServerService{}
 				serverMock.On("SendMessage", entity.ServerMessage{
 					ClientID: "clientID111",
-					Content:  []byte(`{"command":"get_wisdom","meta":{"code":200,"task_to_resolve":"123"},"data":{"wisdom":"wisdom"}}`),
+					Content:  []byte(`{"command":"get_wisdom","meta":{"code":200,"task_to_resolve":"123","request_id":""},"data":{"wisdom":"wisdom"}}`),
 				}).Return(nil)
 				challenge := mocks.ChallengeService{}
 				challenge.On("GenerateTaskToResolve", "clientID111").Return("123", nil)
@@ -161,7 +161,7 @@ func TestApplicationServiceServer_GetWisdom(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := tt.fields()
 			s := NewApplicationServiceServer(&f.serverMock, nil, &f.challenge, &f.wisdom)
-			got := s.GetWisdom(tt.args.clientID, []byte{})
+			got := s.GetWisdom(tt.args.clientID, RequestMessageDTO{})
 			if got != nil && tt.want != nil && got.Error() != tt.want.Error() {
 				t.Errorf("ApplicationServiceServer.GetSecurityCode() = %v, want %v", got, tt.want)
 			}
