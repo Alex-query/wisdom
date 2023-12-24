@@ -37,6 +37,13 @@ func (s *ServiceSync) GenerateRequestID() (string, error) {
 		chError:    errChan,
 		createdAt:  time.Now(),
 	})
+	go func() {
+		select {
+		case <-time.After(s.clientConfig.GetWaitResponseTimeout()):
+			s.requests.Delete(uuidS)
+			errChan <- errors.New("timeout")
+		}
+	}()
 	return uuidS, nil
 }
 
